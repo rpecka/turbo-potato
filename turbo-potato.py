@@ -2,15 +2,28 @@ import argparse
 import pathlib
 import subprocess
 import tempfile
+import tkinter
+
 
 TARGET_FILE_SIZE_kb = 8 * 8 * 1000  # 8MB * 8b/B * 1000 kb/Mb
 AUDIO_BITRATE_kbPS = 128
 MARGIN = 0.98
 
 
-def compress(input_path, output_path):
+def compress(input_path, output_name):
     with tempfile.TemporaryDirectory() as temp_dir:
+        output_path = pathlib.Path(temp_dir).joinpath(output_name).with_suffix(".mp4")
         compress_with_directory(temp_dir, input_path, output_path)
+
+        r = tkinter.Tk()
+        r.withdraw()
+        r.clipboard_clear()
+        r.clipboard_append(str(output_path))
+
+        print(f"The video output path has been written to you clipboard ({output_path})")
+        input("Press enter when you are done. This will delete the output video...")
+
+        r.destroy()
 
 
 def compress_with_directory(working_directory, input_path, output_path):
@@ -20,21 +33,25 @@ def compress_with_directory(working_directory, input_path, output_path):
     subprocess.check_call(["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k", "-pass", "1", "-an", "-f", "null", "garbagefile"], cwd=working_directory)
     subprocess.check_call(["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k", "-pass", "2", "-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_kbPS}k", output_path], cwd=working_directory)
 
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="the file to read the video from")
-    parser.add_argument("--output", help="the path where the resulting file will be written")
+    parser.add_argument("--input", help="the file to read the video from")
+    parser.add_argument("--name", help="the the name of the resulting mp4 file")
 
     args = parser.parse_args()
 
-    input_path = pathlib.Path(args.input)
-
-    if args.output:
-        output_path = pathlib.Path(args.output).with_suffix('.mp4')
+    if args.input:
+        input_path = pathlib.Path(args.input)
     else:
-        output_path = pathlib.Path("./output.mp4")
+        input_path = pathlib.Path(input("Enter the path to the video: ").strip("\""))
 
-    compress(input_path, output_path)
+    if args.name:
+        output_name = args.name
+    else:
+        output_name = input("Enter the name you want the resulting video to have: ")
+
+    compress(input_path, output_name)
 
 
 if __name__ == '__main__':
