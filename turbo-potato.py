@@ -21,7 +21,7 @@ def compress(input_path, output_name):
         r.clipboard_append(str(output_path))
 
         print(f"The video output path has been written to you clipboard ({output_path})")
-        input("Press enter when you are done. This will delete the output video...")
+        input("Press enter when you are done. This will delete the compressed version...")
 
         r.destroy()
 
@@ -50,7 +50,10 @@ def main():
     if args.name:
         output_name = args.name
     else:
-        output_name = input("Enter the name you want the resulting video to have: ")
+        output_name = input("(Optional) Enter the name you want the resulting video to have: ")
+
+    if output_name == "":
+        output_name = "output"
 
     compress(input_path, output_name)
 
