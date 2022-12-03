@@ -1,0 +1,1 @@
+from turbo_potato.turbo_potato import main

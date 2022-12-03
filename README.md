@@ -7,7 +7,7 @@ Compress videos to a specific file size on Windows so that they can be uploaded 
 `turbo-potato` is a python script that is executed by running the following command in your terminal:
 
 ```
-python turbo-potato.py
+turbo-potato.exe
 ```
 
 You will then be prompted for the path to the file you would like to compress:
@@ -48,11 +48,10 @@ can continue to the next step.
 If you don't have it then you can download it by going to the [FFmpeg downloads page](https://ffmpeg.org/download.html)
 and downloading it from the `Get packages & executable files` section.
 
-### Clone the project
+### Install the project from pypi
 
 ```
-git clone git@github.com:rpecka/turbo-potato.git
-cd turbo-potato
+pip install turbo-potato
 ```
 
 ## How it Works
