@@ -31,7 +31,7 @@ def compress_with_directory(working_directory, input_path, output_path):
     duration_seconds = float(duration_string)
     bitrate = int(TARGET_FILE_SIZE_kb / duration_seconds * MARGIN) - AUDIO_BITRATE_kbPS
     base_command = ["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k"]
-    subprocess.check_call(base_command + ["-pass", "1", "-an", "-f", "null", "garbagefile"], cwd=working_directory)
+    subprocess.check_call(base_command + ["-pass", "1", "-an", "-f", "null", "NUL"], cwd=working_directory)
     subprocess.check_call(base_command + ["-pass", "2", "-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_kbPS}k", output_path], cwd=working_directory)
 
 
