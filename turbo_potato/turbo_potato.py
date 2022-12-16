@@ -122,22 +122,12 @@ def make_resolution_options(attributes, options):
     if max_dimension >= largest_dimension:
         return None
     command_options = ["-vf"]
-    scale = max_dimension / largest_dimension
     if attributes.width > attributes.height:
-        height = round(attributes.height * scale)
-        command_options.append(f"scale={max_dimension}:{force_divisible_by_two(height)}")
+        command_options.append(f"scale={max_dimension}:-1")
     else:
-        width = round(attributes.width * scale)
-        command_options.append(f"scale={force_divisible_by_two(width)}:{max_dimension}")
+        command_options.append(f"scale=-1:{max_dimension}")
 
     return command_options
-
-
-def force_divisible_by_two(value):
-    if value % 2 == 0:
-        return value
-    else:
-        return value - 1
 
 
 def main():
