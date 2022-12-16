@@ -9,16 +9,58 @@ TARGET_FILE_SIZE_kb = 8 * 8 * 1000  # 8MB * 8b/B * 1000 kb/Mb
 AUDIO_BITRATE_kbPS = 128
 MARGIN = 0.98
 
+
+class Resolution:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+
+
+RESOLUTION_4K = Resolution(3040, 2160)
+RESOLUTION_2K = Resolution(2560, 1440)
+RESOLUTION_HD = Resolution(1920, 1080)
+RESOLUTION_480 = Resolution(854, 480)
+RESOLUTION_360 = Resolution(640, 360)
+RESOLUTION_240 = Resolution(426, 240)
+
+RESOLUTION_NAMES = {
+    "4K": RESOLUTION_4K,
+    "UHD": RESOLUTION_4K,
+    "2160p": RESOLUTION_4K,
+
+    "2K": RESOLUTION_2K,
+    "1440": RESOLUTION_2K,
+    "1440p": RESOLUTION_2K,
+
+    "HD": RESOLUTION_HD,
+    "1080": RESOLUTION_HD,
+    "1080p": RESOLUTION_HD,
+
+    "480": RESOLUTION_480,
+    "408p": RESOLUTION_480,
+
+    "360": RESOLUTION_360,
+    "360p": RESOLUTION_360,
+
+    "240": RESOLUTION_240,
+    "240p": RESOLUTION_240,
+}
+
+
 class Options:
-    def __init__(self, output_name, max_fps):
+    def __init__(self, output_name, max_fps, max_resolution):
         self.output_name = output_name
         self.max_fps = max_fps
+        self.max_resolution = max_resolution
 
 
 class Attributes:
-    def __init__(self, duration_seconds, fps):
+    def __init__(self, duration_seconds, fps, width, height):
         self.duration_seconds = duration_seconds
         self.fps = fps
+        self.width = width
+        self.height = height
+
 
 def compress(input_path, options):
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -40,14 +82,17 @@ def compress_with_directory(working_directory, input_path, output_path, options)
     attributes = get_input_attributes(input_path)
     bitrate = int(TARGET_FILE_SIZE_kb / attributes.duration_seconds * MARGIN) - AUDIO_BITRATE_kbPS
     base_command = ["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k"]
-    if options.max_fps is not None and options.max_fps < attributes.fps:
-        base_command.extend(["-filter:v", f"fps=fps={options.max_fps}"])
+
+    base_command.extend(make_fps_options(attributes, options))
+    base_command.extend(make_resolution_options(attributes, options))
+
     subprocess.check_call(base_command + ["-pass", "1", "-an", "-f", "null", "NUL"], cwd=working_directory)
     subprocess.check_call(base_command + ["-pass", "2", "-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_kbPS}k", output_path], cwd=working_directory)
 
+
 def get_input_attributes(input_path):
     entries_string = subprocess.check_output(
-        ["ffprobe", "-v", "error", "-select_streams", "0", "-show_entries", "format=duration:stream=r_frame_rate",
+        ["ffprobe", "-v", "error", "-select_streams", "0", "-show_entries", "format=duration:stream=r_frame_rate,width,height",
          "-of", "default=noprint_wrappers=1", input_path]).decode()
     entries_list = entries_string.strip().splitlines()
     entries = {}
@@ -57,7 +102,41 @@ def get_input_attributes(input_path):
     duration_seconds = float(entries["duration"])
     fps_fraction = entries["r_frame_rate"].split('/')
     fps = float(fps_fraction[0])/float(fps_fraction[1])
-    return Attributes(duration_seconds, fps)
+    width = int(entries["width"])
+    height = int(entries["height"])
+    return Attributes(duration_seconds, fps, width, height)
+
+
+def make_fps_options(attributes, options):
+    if options.max_fps is None or options.max_fps >= attributes.fps:
+        return []
+    return ["-filter:v", f"fps=fps={options.max_fps}"]
+
+
+def make_resolution_options(attributes, options):
+    if options.max_resolution is None:
+        return []
+    max_dimension = max(options.max_resolution.width, options.max_resolution.height)
+    largest_dimension = max(attributes.width, attributes.height)
+    if max_dimension >= largest_dimension:
+        return None
+    command_options = ["-vf"]
+    scale = max_dimension / largest_dimension
+    if attributes.width > attributes.height:
+        height = round(attributes.height * scale)
+        command_options.append(f"scale={max_dimension}:{force_divisible_by_two(height)}")
+    else:
+        width = round(attributes.width * scale)
+        command_options.append(f"scale={force_divisible_by_two(width)}:{max_dimension}")
+
+    return command_options
+
+
+def force_divisible_by_two(value):
+    if value % 2 == 0:
+        return value
+    else:
+        return value - 1
 
 
 def main():
@@ -65,6 +144,7 @@ def main():
     parser.add_argument("--input", help="the file to read the video from")
     parser.add_argument("--name", help="the the name of the resulting mp4 file")
     parser.add_argument("--max-fps", type=int, help="reduce the output's frame rate to the given value if it exceeds it")
+    parser.add_argument("--max-resolution", help="reduce the output's resolution to the given value if it exceeds it", choices=RESOLUTION_NAMES.keys())
 
     args = parser.parse_args()
 
@@ -81,7 +161,7 @@ def main():
     if output_name == "":
         output_name = "output"
 
-    options = Options(output_name, args.max_fps)
+    options = Options(output_name, args.max_fps, RESOLUTION_NAMES[args.max_resolution])
 
     compress(input_path, options)
 
