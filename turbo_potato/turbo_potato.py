@@ -5,7 +5,7 @@ import tempfile
 import tkinter
 
 
-TARGET_FILE_SIZE_kb = 8 * 8 * 1000  # 8MB * 8b/B * 1000 kb/Mb
+MB_to_kb = 8 * 1000  # 8b/B * 1000 kb/Mb
 AUDIO_BITRATE_kbPS = 128
 MARGIN = 0.98
 
@@ -48,8 +48,9 @@ RESOLUTION_NAMES = {
 
 
 class Options:
-    def __init__(self, output_name, max_fps, max_resolution):
+    def __init__(self, output_name, target_size_megabytes, max_fps, max_resolution):
         self.output_name = output_name
+        self.target_size_megabytes = target_size_megabytes
         self.max_fps = max_fps
         self.max_resolution = max_resolution
 
@@ -80,7 +81,7 @@ def compress(input_path, options):
 
 def compress_with_directory(working_directory, input_path, output_path, options):
     attributes = get_input_attributes(input_path)
-    bitrate = int(TARGET_FILE_SIZE_kb / attributes.duration_seconds * MARGIN) - AUDIO_BITRATE_kbPS
+    bitrate = int((options.target_size_megabytes * MB_to_kb) / attributes.duration_seconds * MARGIN) - AUDIO_BITRATE_kbPS
     base_command = ["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k"]
 
     base_command.extend(make_fps_options(attributes, options))
@@ -143,6 +144,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", help="the file to read the video from")
     parser.add_argument("--name", help="the the name of the resulting mp4 file")
+    parser.add_argument("--target-size", type=int, help="the target output file size in megabytes. i.e. 8, 50, 500", default=8)
     parser.add_argument("--max-fps", type=int, help="reduce the output's frame rate to the given value if it exceeds it")
     parser.add_argument("--max-resolution", help="reduce the output's resolution to the given value if it exceeds it", choices=RESOLUTION_NAMES.keys())
 
@@ -161,7 +163,7 @@ def main():
     if output_name == "":
         output_name = "output"
 
-    options = Options(output_name, args.max_fps, RESOLUTION_NAMES[args.max_resolution])
+    options = Options(output_name, args.target_size, args.max_fps, RESOLUTION_NAMES[args.max_resolution])
 
     compress(input_path, options)
 
