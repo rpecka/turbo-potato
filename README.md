@@ -54,6 +54,19 @@ and downloading it from the `Get packages & executable files` section.
 pip install turbo-potato
 ```
 
+## Advanced Usage
+
+`turbo-potato` supports the following command line options to customize compression settings:
+- `--target-size`: the target size of the output file in megabytes (MB). The output file will be no larger than this value.
+  - The default is 8MB.
+- `--max-fps`: the maximum FPS that your output will have. If your input file has a higher FPS than this value then the
+output file's FPS will be forced to this value.
+  - This option is not active by default.
+- `--max-resolution`: the maximum resolution that your output will have. If your input file has a higher resolution than
+this value, then the output file's resolution will be forced to this value.
+  - This option is not active by default.
+  - This option will do its best not to mess with the input file's aspect ratio
+
 ## How it Works
 
 The script uses the Two-Pass rate control mode of the `ffmpeg` H.264 encoder. You can read about it
