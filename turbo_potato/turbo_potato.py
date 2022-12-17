@@ -1,8 +1,11 @@
 import argparse
+import os.path
 import pathlib
 import subprocess
 import tempfile
 import tkinter
+
+import configfile
 
 
 MB_to_kb = 8 * 1000  # 8b/B * 1000 kb/Mb
@@ -63,6 +66,12 @@ class Attributes:
         self.height = height
 
 
+def validate_config(config):
+    if config.default_max_resolution is not None and not config.default_max_resolution in RESOLUTION_NAMES.keys():
+        return f"ERROR: the default max resolution must be one of the available settings: {', '.join(RESOLUTION_NAMES.keys())}"
+    return None
+
+
 def compress(input_path, options):
     with tempfile.TemporaryDirectory() as temp_dir:
         output_path = pathlib.Path(temp_dir).joinpath(options.output_name).with_suffix(".mp4")
@@ -84,8 +93,14 @@ def compress_with_directory(working_directory, input_path, output_path, options)
     bitrate = int((options.target_size_megabytes * MB_to_kb) / attributes.duration_seconds * MARGIN) - AUDIO_BITRATE_kbPS
     base_command = ["ffmpeg", "-y", "-i", input_path, "-c:v", "libx264", "-b:v", f"{bitrate}k"]
 
-    base_command.extend(make_fps_options(attributes, options))
-    base_command.extend(make_resolution_options(attributes, options))
+    video_filtergraphs = []
+    if (fps_filtergraph := make_fps_filtergraph(attributes, options)) is not None:
+        video_filtergraphs.append(fps_filtergraph)
+    if (resolution_filtergraph := make_resolution_filtergraph(attributes, options)) is not None:
+        video_filtergraphs.append(resolution_filtergraph)
+
+    if len(video_filtergraphs) > 0:
+        base_command.extend(["-filter_complex", ",".join(video_filtergraphs)])
 
     subprocess.check_call(base_command + ["-pass", "1", "-an", "-f", "null", "NUL"], cwd=working_directory)
     subprocess.check_call(base_command + ["-pass", "2", "-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_kbPS}k", output_path], cwd=working_directory)
@@ -108,35 +123,39 @@ def get_input_attributes(input_path):
     return Attributes(duration_seconds, fps, width, height)
 
 
-def make_fps_options(attributes, options):
+def make_fps_filtergraph(attributes, options):
     if options.max_fps is None or options.max_fps >= attributes.fps:
-        return []
-    return ["-filter:v", f"fps=fps={options.max_fps}"]
+        return None
+    return f"fps=fps={options.max_fps}"
 
 
-def make_resolution_options(attributes, options):
+def make_resolution_filtergraph(attributes, options):
     if options.max_resolution is None:
-        return []
+        return None
     max_dimension = max(options.max_resolution.width, options.max_resolution.height)
     largest_dimension = max(attributes.width, attributes.height)
     if max_dimension >= largest_dimension:
         return None
-    command_options = ["-vf"]
     if attributes.width > attributes.height:
-        command_options.append(f"scale={max_dimension}:-1")
+        return f"scale={max_dimension}:-1"
     else:
-        command_options.append(f"scale=-1:{max_dimension}")
-
-    return command_options
+        return f"scale=-1:{max_dimension}"
 
 
 def main():
+    config_path = os.path.expanduser(os.path.join("~", ".turbo-potato-config.ini"))
+    config = configfile.Config(config_path)
+
+    if (config_error := validate_config(config)) is not None:
+        print(config_error)
+        exit(1)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", help="the file to read the video from")
     parser.add_argument("--name", help="the the name of the resulting mp4 file")
-    parser.add_argument("--target-size", type=int, help="the target output file size in megabytes. i.e. 8, 50, 500", default=8)
-    parser.add_argument("--max-fps", type=int, help="reduce the output's frame rate to the given value if it exceeds it")
-    parser.add_argument("--max-resolution", help="reduce the output's resolution to the given value if it exceeds it", choices=RESOLUTION_NAMES.keys())
+    parser.add_argument("--target-size", type=float, help="the target output file size in megabytes. i.e. 8, 50, 500", default=config.default_target_size)
+    parser.add_argument("--max-fps", type=int, help="reduce the output's frame rate to the given value if it exceeds it", default=config.default_max_fps)
+    parser.add_argument("--max-resolution", help="reduce the output's resolution to the given value if it exceeds it", choices=RESOLUTION_NAMES.keys(), default=config.default_max_resolution)
 
     args = parser.parse_args()
 
