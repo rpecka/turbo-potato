@@ -56,6 +56,8 @@ pip install turbo-potato
 
 ## Advanced Usage
 
+### Additional Command Line Options
+
 `turbo-potato` supports the following command line options to customize compression settings:
 - `--target-size`: the target size of the output file in megabytes (MB). The output file will be no larger than this value.
   - The default is 8MB.
@@ -66,6 +68,28 @@ output file's FPS will be forced to this value.
 this value, then the output file's resolution will be forced to this value.
   - This option is not active by default.
   - This option will do its best not to mess with the input file's aspect ratio
+
+### Config File
+
+`turbo-potato` supports reading from a config file to determine default configuration values. When it launches, it will
+attempt to read the file `~/.turbo-potato-config.ini` and will apply any settings specified in that file if it exists.
+
+This is useful if you would like do have the tool default to a higher output file size instead of the built in default
+of 8 MB.
+
+The config file uses the Python `configparser` format, which looks like this:
+
+```
+[defaults]
+targetSize = 50
+maxResolution = 240p
+```
+
+The supported configuration values are:
+- `[defaults]`: this section defines default values for settings. These can generally be overriden by command line flags.
+  - `targetSize`: a number indicating the default output file target size in megabytes (MB) i.e. `50`
+  - `maxFPS`: a number indicating the default maximum FPS for the output.
+  - `maxResolution`: the default maximum resolution for the output. See the help menu for a list of acceptable values.
 
 ## How it Works
 
