@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import tkinter
 
-import configfile
+import turbo_potato.configfile
 
 
 MB_to_kb = 8 * 1000  # 8b/B * 1000 kb/Mb
@@ -144,7 +144,7 @@ def make_resolution_filtergraph(attributes, options):
 
 def main():
     config_path = os.path.expanduser(os.path.join("~", ".turbo-potato-config.ini"))
-    config = configfile.Config(config_path)
+    config = turbo_potato.configfile.Config(config_path)
 
     if (config_error := validate_config(config)) is not None:
         print(config_error)
