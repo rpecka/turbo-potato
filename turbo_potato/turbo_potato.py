@@ -172,7 +172,13 @@ def main():
     if output_name == "":
         output_name = "output"
 
-    options = Options(output_name, args.target_size, args.max_fps, RESOLUTION_NAMES[args.max_resolution])
+    max_resolution = None
+    if args.max_resolution is not None:
+        if (max_resolution := RESOLUTION_NAMES.get(args.max_resolution)) is None:
+            print(f"Unrecognized resolution: {args.max_resolution}")
+            exit(1)
+
+    options = Options(output_name, args.target_size, args.max_fps, max_resolution)
 
     compress(input_path, options)
 
